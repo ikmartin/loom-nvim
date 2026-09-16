@@ -8,11 +8,13 @@ local M = {}
 --- @field serve_url string
 --- @field autostart boolean
 --- @field which_key boolean
+--- @field serve "auto"|"tmux"|"terminal"
 --- @field opener fun(url: string)
 local defaults = {
   loom = "loom",
   server = "loom-lsp",
   serve_url = "http://127.0.0.1:8000",
+  serve = "auto",
   autostart = true,
   which_key = true,
   opener = function(url)
