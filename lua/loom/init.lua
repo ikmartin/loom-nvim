@@ -50,6 +50,10 @@ function M.setup(opts)
     end
   end
 
+  if cfg.tex_search_path then
+    require("loom.texenv").setup()
+  end
+
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = vim.api.nvim_create_augroup("loom_serve", { clear = true }),
     callback = function()

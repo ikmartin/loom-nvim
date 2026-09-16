@@ -15,6 +15,7 @@ It **complements vimtex rather than replacing it.** vimtex keeps `tex`; this plu
     loom = "loom",              -- the loom binary
     server = "loom-lsp",        -- the language server binary
     serve = "auto",             -- where loom serve runs: "auto", "tmux" or "terminal"
+    tex_search_path = true,     -- put the quilt root on TEXINPUTS and BIBINPUTS while a quilt file is current
     autostart = true,           -- attach the server inside a quilt
     which_key = true,           -- register a <leader>l group when which-key is installed
   },
@@ -47,6 +48,10 @@ With `serve = "auto"`:
 
 `serve = "terminal"` always takes the split, and `serve = "tmux"` warns when it cannot have a pane.
 
+## Compiling with vimtex
+
+A quilt's masters sit in `drafts/` but name everything relative to the quilt root (`\usepackage{loom}`, `\input{nodes/…}`, `\addbibresource{refs.bib}`), which is how they compile from the root and on Overleaf. vimtex runs latexmk in the master's own folder, where none of those are found. While a file inside a quilt is the current buffer, the plugin therefore puts the quilt root first on `TEXINPUTS` and `BIBINPUTS` in Neovim's environment, so the latexmk vimtex starts finds them; `\ll`, `\lv` and Skim sync work as they do anywhere else, and the compiled files land in `drafts/`, which the quilt's `.gitignore` already covers. Moving to a file outside any quilt restores the original values; buffers that are not files (terminals, the quickfix list) leave them as they are. Nothing is written to the quilt. A continuous compile keeps the path it was started with. `tex_search_path = false` turns this off.
+
 ## Language server commands and navigation
 
 The server's code actions name two commands, which the plugin carries out: `loom.run` (accept, atomize, insert a node skeleton; confirming first when it writes) and `loom.open` (open in arras, on this session's server). With LazyVim's defaults they are under `<leader>ca`.
@@ -72,7 +77,7 @@ nvim --headless --noplugin -u tests/minimal_init.lua \
   -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
 ```
 
-Thirty-one busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, the language server's commands, and the servers a session owns. The browser opener is injected. The serve tests stand a `python3 -m http.server` in for `loom serve`, in a terminal buffer and, when tmux is installed, in a private tmux server on its own socket, never the one the tests were started from; one test opens a node on a real `loom serve` over a copy of loom's demo quilt when `loom` is on the path.
+Forty-two busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, the language server's commands, the servers a session owns, and TeX's search path following the current buffer (checked through `kpsewhich` run from a quilt's `drafts/` when it is installed). The browser opener is injected. The serve tests stand a `python3 -m http.server` in for `loom serve`, in a terminal buffer and, when tmux is installed, in a private tmux server on its own socket, never the one the tests were started from; one test opens a node on a real `loom serve` over a copy of loom's demo quilt when `loom` is on the path.
 
 Two scripts drive the real server against a real quilt:
 

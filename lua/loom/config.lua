@@ -8,11 +8,13 @@ local M = {}
 --- @field autostart boolean
 --- @field which_key boolean
 --- @field serve "auto"|"tmux"|"terminal"
+--- @field tex_search_path boolean
 --- @field opener fun(url: string)
 local defaults = {
   loom = "loom",
   server = "loom-lsp",
   serve = "auto",
+  tex_search_path = true,
   autostart = true,
   which_key = true,
   opener = function(url)
