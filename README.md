@@ -14,8 +14,7 @@ It **complements vimtex rather than replacing it.** vimtex keeps `tex`; this plu
     -- every field below is the default
     loom = "loom",              -- the loom binary
     server = "loom-lsp",        -- the language server binary
-    serve_url = "http://127.0.0.1:8000",
-    serve = "auto",             -- where :LoomServe runs: "auto", "tmux" or "terminal"
+    serve = "auto",             -- where loom serve runs: "auto", "tmux" or "terminal"
     autostart = true,           -- attach the server inside a quilt
     which_key = true,           -- register a <leader>l group when which-key is installed
   },
@@ -32,19 +31,35 @@ Neovim 0.12 registers the server through `vim.lsp.config` and `vim.lsp.enable`; 
 | `:LoomLint` | diagnostics into the quickfix list |
 | `:LoomNew {taxon} {title}` | a node skeleton, inserted at the cursor |
 | `:LoomAccept [key]` | record an acceptance for the key under the cursor, after confirming |
-| `:LoomServe` | start `loom serve` in a tmux pane or a terminal split (see below) |
-| `:LoomOpen [key]` | open the node under the cursor in arras |
+| `:LoomServe` | start this session's `loom serve` for the quilt, or say where it is running (see below) |
+| `:LoomOpen [key]` | open the node under the cursor in arras, starting the server first when needed |
 | `:LoomBundle [key]` | the standalone bundle for a key, in a scratch buffer |
 | `:LoomDeps [key]` | what the key depends on, and what it is related to |
 
-## Where the server runs
+## The server a session owns
 
-`:LoomServe` runs `loom serve` beside the editor and leaves the cursor in the file you were editing. With `serve = "auto"`:
+Each Neovim session owns its `loom serve` processes, one per quilt, each on a free port the plugin picks, so arras is always opened on the server this session started and two sessions never compete for a port. `:LoomServe` starts it; `:LoomOpen` starts it too when it is not running, waits until it answers, and says where it started. The cursor stays in the file you were editing either way. Quitting Neovim stops every server the session started.
 
-- **Neovim inside tmux** (`$TMUX` is set): a tmux pane below Neovim's own. The pane outlives Neovim, so quitting the editor does not stop the server; stop it with `Ctrl-C` in the pane and close the pane with `prefix x`. A server that exits, for instance because the port is in use, leaves its output in the pane.
-- **Neovim outside tmux**, or no tmux on the machine: a terminal buffer in a split at the bottom. Stop it with `Ctrl-C` in terminal mode or `:bd!` in that window; quitting Neovim stops it too.
+With `serve = "auto"`:
 
-Running the command again while the server is up only says where it is running; after it has exited, the tmux pane is reused. `serve = "terminal"` always takes the split, and `serve = "tmux"` warns when it cannot have a pane.
+- **Neovim inside tmux** (`$TMUX` is set): a tmux pane below Neovim's own. A server that exits, for instance on an error, leaves its output in the pane, and the next `:LoomServe` or `:LoomOpen` restarts it there.
+- **Neovim outside tmux**, or no tmux on the machine: a terminal buffer in a split at the bottom, which is not entered.
+
+`serve = "terminal"` always takes the split, and `serve = "tmux"` warns when it cannot have a pane.
+
+## Language server commands and navigation
+
+The server's code actions name two commands, which the plugin carries out: `loom.run` (accept, atomize, insert a node skeleton; confirming first when it writes) and `loom.open` (open in arras, on this session's server). With LazyVim's defaults they are under `<leader>ca`.
+
+Moving between nodes uses the server's features and Neovim's jump list:
+
+| to | use |
+|---|---|
+| go to what a `\ref`, `\uses`, `\cite` or `\input` names | `gd`; `gr` lists the references to a key |
+| find a node by title, alias, tag or id | workspace symbols: `<leader>sS` in LazyVim, or `vim.lsp.buf.workspace_symbol()` |
+| list what a node uses, or what uses it | `vim.lsp.buf.outgoing_calls()` and `vim.lsp.buf.incoming_calls()` |
+| see what an id points to without leaving | inlay hints after each reference and inclusion; `<leader>uh` toggles them in LazyVim |
+| go back and forward | `<C-o>` and `<C-i>`; `set jumpoptions+=stack` makes them behave like a browser's back and forward |
 
 ## Statusline
 
@@ -54,10 +69,10 @@ Running the command again while the server is up only says where it is running; 
 
 ```
 nvim --headless --noplugin -u tests/minimal_init.lua \
-  -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua'}"
+  -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
 ```
 
-Twenty-five busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, and where the server runs. No loom process is run and the browser opener is injected; the serve tests start `sleep` and `sh` in a terminal buffer, and in a private tmux server on its own socket when tmux is installed, never the one the tests were started from.
+Thirty-one busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, the language server's commands, and the servers a session owns. The browser opener is injected. The serve tests stand a `python3 -m http.server` in for `loom serve`, in a terminal buffer and, when tmux is installed, in a private tmux server on its own socket, never the one the tests were started from; one test opens a node on a real `loom serve` over a copy of loom's demo quilt when `loom` is on the path.
 
 Two scripts drive the real server against a real quilt:
 

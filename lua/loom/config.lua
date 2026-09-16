@@ -5,7 +5,6 @@ local M = {}
 --- @class LoomConfig
 --- @field loom string
 --- @field server string
---- @field serve_url string
 --- @field autostart boolean
 --- @field which_key boolean
 --- @field serve "auto"|"tmux"|"terminal"
@@ -13,7 +12,6 @@ local M = {}
 local defaults = {
   loom = "loom",
   server = "loom-lsp",
-  serve_url = "http://127.0.0.1:8000",
   serve = "auto",
   autostart = true,
   which_key = true,

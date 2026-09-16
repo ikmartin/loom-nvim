@@ -35,6 +35,29 @@ function M.setup(opts)
     require("loom.lsp").register(cfg)
   end
 
+  -- the language server's code actions name these commands; the editor carries them out (it owns the server "open" needs)
+  vim.lsp.commands["loom.run"] = function(command)
+    local args = command.arguments or {}
+    if type(args[1]) == "table" then
+      commands.run_action(args[1], type(args[2]) == "string" and args[2] or "")
+    end
+  end
+  vim.lsp.commands["loom.open"] = function(command, ctx)
+    local key = (command.arguments or {})[1]
+    local root = quilt.root_of_buf(ctx and ctx.bufnr or 0)
+    if type(key) == "string" and root then
+      commands.open_key(root, key)
+    end
+  end
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = vim.api.nvim_create_augroup("loom_serve", { clear = true }),
+    callback = function()
+      require("loom.serve").stop_all()
+    end,
+    desc = "Stop the loom serve processes this session started",
+  })
+
   if cfg.which_key then
     local ok, wk = pcall(require, "which-key")
     if ok then

@@ -21,7 +21,7 @@ function M.client_config(cfg)
         on_dir(root)
       end
     end,
-    init_options = { loomPath = cfg.loom, serveUrl = cfg.serve_url },
+    init_options = { loomPath = cfg.loom },
     settings = {},
   }
 end

@@ -2,6 +2,7 @@
 
 local quilt = require("loom.quilt")
 local run = require("loom.run")
+local serve = require("loom.serve")
 
 local M = {}
 
@@ -26,7 +27,7 @@ end
 --- @param root string
 --- @param cfg table
 --- @param arg string|nil
---- @return string[]|nil, string|nil  the vector, or nil and a URL for the browser
+--- @return string[]|nil
 function M.argv_for(name, root, cfg, arg)
   local A = function(...)
     return run.argv(cfg.loom, root, { ... })
@@ -38,21 +39,19 @@ function M.argv_for(name, root, cfg, arg)
   elseif name == "new" then
     local taxon, title = (arg or ""):match("^(%S+)%s+(.+)$")
     if not taxon then
-      return nil, nil
+      return nil
     end
     return A("new", taxon, title, "--print")
   elseif name == "accept" then
     return A("accept", arg or "")
   elseif name == "serve" then
-    return A("serve")
+    return arg and A("serve", "--port", arg) or A("serve")
   elseif name == "bundle" then
     return A("bundle", arg or "")
   elseif name == "deps" then
     return A("deps", arg or "")
-  elseif name == "open" then
-    return nil, cfg.serve_url:gsub("/$", "") .. "/node/" .. (arg or "")
   end
-  return nil, nil
+  return nil
 end
 
 function M.status()
@@ -142,139 +141,18 @@ function M.accept(arg)
   end)
 end
 
---- Where the server runs: `"tmux"` or `"terminal"`, and a warning when the setting asked for tmux and cannot have it.
---- `"auto"` takes a tmux pane only when Neovim itself runs inside tmux, so a tmux server elsewhere on the machine is never used.
---- @param mode string  the `serve` setting: "auto", "tmux" or "terminal"
---- @param tmux_env string|nil  $TMUX
---- @param has_tmux boolean  whether the tmux binary is executable
---- @return string, string|nil
-function M.serve_target(mode, tmux_env, has_tmux)
-  if mode == "terminal" then
-    return "terminal", nil
-  end
-  if tmux_env and tmux_env ~= "" and has_tmux then
-    return "tmux", nil
-  end
-  if mode == "tmux" then
-    return "terminal", "loom: serve = 'tmux' but Neovim is not running inside tmux; using a terminal split"
-  end
-  return "terminal", nil
-end
-
---- The tmux call that opens the server's pane below `pane`, holding a placeholder process.
---- The placeholder keeps the pane alive until remain-on-exit is set on it; the server is swapped in by `tmux_respawn_argv`, so a server that fails at once still leaves its error on screen.
---- @param root string
---- @param pane string|nil  $TMUX_PANE
---- @return string[]
-function M.tmux_split_argv(root, pane)
-  local out = { "tmux", "split-window", "-v", "-l", "30%", "-d", "-c", root, "-P", "-F", "#{pane_id}" }
-  if pane and pane ~= "" then
-    vim.list_extend(out, { "-t", pane })
-  end
-  vim.list_extend(out, { "--", "cat" })
-  return out
-end
-
---- The tmux call that runs `argv` in `pane`, replacing whatever it holds.
---- @param root string
---- @param pane string
---- @param argv string[]
---- @return string[]
-function M.tmux_respawn_argv(root, pane, argv)
-  local out = { "tmux", "respawn-pane", "-k", "-t", pane, "-c", root, "--" }
-  vim.list_extend(out, argv)
-  return out
-end
-
--- The server this session started: { kind = "tmux", pane = "%5" } or { kind = "terminal", job = 12 }.
-local server = nil
-
---- The state of the tmux pane `pane`: "running", "dead" (kept by remain-on-exit) or "gone".
-local function tmux_pane_state(pane)
-  local out = vim.fn.system({ "tmux", "list-panes", "-a", "-F", "#{pane_id} #{pane_dead}" })
-  if vim.v.shell_error ~= 0 then
-    return "gone"
-  end
-  for _, line in ipairs(vim.split(out, "\n")) do
-    local id, dead = line:match("^(%%%d+) (%d)$")
-    if id == pane then
-      return dead == "1" and "dead" or "running"
+--- Report where this session's server for `root` is, starting it when there is none, then call `then_` with its url.
+local function with_server(root, cfg, then_)
+  serve.ensure(root, cfg, function(port)
+    return M.argv_for("serve", root, cfg, tostring(port))
+  end, function(url, info)
+    if info.started then
+      vim.notify(("loom serve started in %s at %s"):format(info.where, url))
     end
-  end
-  return "gone"
-end
-
---- Run `argv` in a tmux pane below Neovim's own, reusing this session's pane when it is still open.
---- @return boolean  false when tmux refused, so the caller can fall back to a terminal
-local function serve_in_tmux(root, argv)
-  local pane = server and server.kind == "tmux" and server.pane or nil
-  local state = pane and tmux_pane_state(pane) or "gone"
-  if state == "running" then
-    vim.notify(("loom serve is already running in tmux pane %s"):format(pane))
-    return true
-  end
-  if state == "gone" then
-    local out = vim.fn.system(M.tmux_split_argv(root, vim.env.TMUX_PANE))
-    if vim.v.shell_error ~= 0 then
-      vim.notify("loom: tmux split-window failed: " .. out, vim.log.levels.WARN)
-      return false
+    if then_ then
+      then_(url, info)
     end
-    pane = vim.trim(out)
-    vim.fn.system({ "tmux", "set-option", "-p", "-t", pane, "remain-on-exit", "on" })
-  end
-  local out = vim.fn.system(M.tmux_respawn_argv(root, pane, argv))
-  if vim.v.shell_error ~= 0 then
-    vim.notify("loom: tmux respawn-pane failed: " .. out, vim.log.levels.WARN)
-    vim.fn.system({ "tmux", "kill-pane", "-t", pane })
-    return false
-  end
-  server = { kind = "tmux", pane = pane }
-  vim.notify(("loom serve: tmux pane %s"):format(pane))
-  return true
-end
-
---- Run `argv` in a terminal buffer in a new split, leaving the cursor where it was.
---- The split gets a buffer of its own, so the buffer being edited is never turned into the terminal.
-local function serve_in_terminal(root, argv)
-  if server and server.kind == "terminal" and vim.fn.jobwait({ server.job }, 0)[1] == -1 then
-    vim.notify("loom serve is already running in a terminal buffer")
-    return
-  end
-  local from = vim.api.nvim_get_current_win()
-  vim.cmd("botright new")
-  local job
-  if vim.fn.has("nvim-0.11") == 1 then
-    job = vim.fn.jobstart(argv, { term = true, cwd = root })
-  else
-    job = vim.fn.termopen(argv, { cwd = root })
-  end
-  vim.api.nvim_set_current_win(from)
-  if job <= 0 then
-    vim.notify("loom: could not start " .. argv[1], vim.log.levels.ERROR)
-    return
-  end
-  server = { kind = "terminal", job = job }
-end
-
---- Start `argv` as the server for `root`, where `cfg.serve` and the environment say.
---- Exposed with the command vector injected, so the tests can start something harmless.
---- @param root string
---- @param argv string[]
---- @param cfg table
-function M.start_server(root, argv, cfg)
-  local target, warning = M.serve_target(cfg.serve, vim.env.TMUX, vim.fn.executable("tmux") == 1)
-  if warning then
-    vim.notify(warning, vim.log.levels.WARN)
-  end
-  if target == "tmux" and serve_in_tmux(root, argv) then
-    return
-  end
-  serve_in_terminal(root, argv)
-end
-
---- Forget the server this session started, for the tests.
-function M._reset_server()
-  server = nil
+  end)
 end
 
 function M.serve()
@@ -282,7 +160,11 @@ function M.serve()
   if not ctx then
     return
   end
-  M.start_server(ctx.root, M.argv_for("serve", ctx.root, ctx.config), ctx.config)
+  with_server(ctx.root, ctx.config, function(url, info)
+    if not info.started then
+      vim.notify(("loom serve is already running in %s at %s"):format(info.where, url))
+    end
+  end)
 end
 
 function M.bundle(arg)
@@ -329,8 +211,50 @@ function M.open(arg)
     vim.notify("loom: no key under the cursor", vim.log.levels.WARN)
     return
   end
-  local _, url = M.argv_for("open", ctx.root, ctx.config, key)
-  require("loom.config").get().opener(url)
+  M.open_key(ctx.root, key)
+end
+
+--- Open `key` in arras on this session's server for `root`, starting the server first when there is none.
+--- @param root string
+--- @param key string
+function M.open_key(root, key)
+  local cfg = require("loom.config").get()
+  with_server(root, cfg, function(url)
+    cfg.opener(url .. "node/" .. key)
+  end)
+end
+
+--- Carry out a `loom.run` command from the language server: confirm when it writes, run, then insert or report the output.
+--- A `--print` command (a node skeleton) is inserted below the cursor; anything else is reported.
+--- @param argv string[]
+--- @param confirm string  empty when the command writes nothing
+function M.run_action(argv, confirm)
+  if confirm ~= "" and not M.confirm(confirm) then
+    return
+  end
+  local buf, win = vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
+  run.run(argv, function(code, out, err)
+    vim.schedule(function()
+      local name = argv[2] or argv[1]
+      if code ~= 0 then
+        vim.notify(("loom %s failed: %s"):format(name, err ~= "" and err or out), vim.log.levels.ERROR)
+        return
+      end
+      if vim.tbl_contains(argv, "--print") and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+        local row = vim.api.nvim_win_get_cursor(win)[1]
+        vim.api.nvim_buf_set_lines(buf, row, row, false, vim.split(out:gsub("\n$", ""), "\n"))
+        return
+      end
+      vim.notify(("loom %s: %s"):format(name, vim.trim(out)))
+    end)
+  end)
+end
+
+--- Ask before a command that writes. Replaced in the tests.
+--- @param message string
+--- @return boolean
+function M.confirm(message)
+  return vim.fn.confirm(message, "&Yes\n&No", 2) == 1
 end
 
 return M
