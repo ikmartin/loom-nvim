@@ -14,6 +14,8 @@ local COMMANDS = {
   { name = "LoomStatus", fn = commands.status, nargs = 0, desc = "The quilt's states" },
   { name = "LoomLint", fn = commands.lint, nargs = 0, desc = "Diagnostics into the quickfix list" },
   { name = "LoomNew", fn = commands.new, nargs = "+", desc = "Insert a node skeleton" },
+  { name = "LoomAtomize", fn = commands.atomize, nargs = 0, desc = "Move the node under the cursor into nodes/" },
+  { name = "LoomId", fn = commands.id, nargs = 0, desc = "Give the node under the cursor an id" },
   { name = "LoomAccept", fn = commands.accept, nargs = "?", desc = "Record an acceptance" },
   { name = "LoomServe", fn = commands.serve, nargs = 0, desc = "Start loom serve in a terminal" },
   { name = "LoomOpen", fn = commands.open, nargs = "?", desc = "Open the node in arras" },

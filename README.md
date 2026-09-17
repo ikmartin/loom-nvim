@@ -31,6 +31,8 @@ Neovim 0.12 registers the server through `vim.lsp.config` and `vim.lsp.enable`; 
 | `:LoomStatus` | the quilt's states, in a scratch buffer |
 | `:LoomLint` | diagnostics into the quickfix list |
 | `:LoomNew {taxon} {title}` | a node skeleton, inserted at the cursor |
+| `:LoomAtomize` | move the node under the cursor into `nodes/<id>.tex`, leaving an `\input` behind |
+| `:LoomId` | give the node under the cursor the next free id |
 | `:LoomAccept [key]` | record an acceptance for the key under the cursor, after confirming |
 | `:LoomServe` | start this session's `loom serve` for the quilt, or say where it is running (see below) |
 | `:LoomOpen [key]` | open the node under the cursor in arras, starting the server first when needed |
@@ -56,6 +58,8 @@ A quilt's masters sit in `drafts/` but name everything relative to the quilt roo
 
 The server's code actions name two commands, which the plugin carries out: `loom.run` (accept, atomize, insert a node skeleton; confirming first when it writes) and `loom.open` (open in arras, on this session's server). With LazyVim's defaults they are under `<leader>ca`.
 
+`:LoomAtomize` moves the node under the cursor into `nodes/<id>.tex` and leaves an `\input` in its place, as one edit in your buffers: `u` puts the draft back (the node file it wrote stays on disk), and an unsaved draft is included. loom itself never edits your files — the server plans the change and Neovim applies it. A node with no id refuses the move; `:LoomId` gives it one, and both are offered as code actions at the cursor too.
+
 Moving between nodes uses the server's features and Neovim's jump list:
 
 | to | use |
@@ -77,7 +81,7 @@ nvim --headless --noplugin -u tests/minimal_init.lua \
   -c "PlenaryBustedDirectory tests/ {minimal_init = 'tests/minimal_init.lua', sequential = true}"
 ```
 
-Forty-two busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, the language server's commands, the servers a session owns, and TeX's search path following the current buffer (checked through `kpsewhich` run from a quilt's `drafts/` when it is installed). The browser opener is injected. The serve tests stand a `python3 -m http.server` in for `loom serve`, in a terminal buffer and, when tmux is installed, in a private tmux server on its own socket, never the one the tests were started from; one test opens a node on a real `loom serve` over a copy of loom's demo quilt when `loom` is on the path.
+Forty-eight busted-style tests over root detection, the key under the cursor, every command's argument vector, the client configuration, the language server's commands, the reshaping commands, the servers a session owns, and TeX's search path following the current buffer (checked through `kpsewhich` run from a quilt's `drafts/` when it is installed). The browser opener is injected. The serve tests stand a `python3 -m http.server` in for `loom serve`, in a terminal buffer and, when tmux is installed, in a private tmux server on its own socket, never the one the tests were started from; one test opens a node on a real `loom serve` over a copy of loom's demo quilt when `loom` is on the path. The reshaping commands are driven by a fake client, and by the real server over a copy of loom's synthetic quilt when `loom` and `loom-lsp` are both on the path.
 
 Two scripts drive the real server against a real quilt:
 

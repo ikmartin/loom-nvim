@@ -7,6 +7,8 @@ describe("setup", function()
       "LoomStatus",
       "LoomLint",
       "LoomNew",
+      "LoomAtomize",
+      "LoomId",
       "LoomAccept",
       "LoomServe",
       "LoomOpen",

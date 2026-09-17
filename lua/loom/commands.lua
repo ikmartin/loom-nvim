@@ -250,6 +250,56 @@ function M.run_action(argv, confirm)
   end)
 end
 
+local CODE_ACTION_TIMEOUT_MS = 5000
+
+--- Apply the loom server's code action of `kind` at the cursor, and say what it was.
+---
+--- The server offers at most one action of each reshaping kind, so the first of the kind is taken; the answer is filtered here as well as asked for, because the server sends everything it has at the position. Only the loom client is asked, never the TeX server beside it, and the edit lands in the buffer rather than on disk, which is what makes the whole reshaping one undo. `nothing` is what to say when the server offers none.
+--- @param kind string  an LSP code action kind, e.g. "refactor.extract"
+--- @param nothing string  the message for a position the server offers nothing at
+--- @return table|nil  the action applied, or nil
+function M.code_action(kind, nothing)
+  local client = require("loom.lsp").client(0)
+  if not client then
+    vim.notify("loom: the language server is not attached to this buffer", vim.log.levels.WARN)
+    return nil
+  end
+  local params = vim.lsp.util.make_range_params(0, client.offset_encoding)
+  params.context = { only = { kind }, diagnostics = {} }
+  local response = client:request_sync("textDocument/codeAction", params, CODE_ACTION_TIMEOUT_MS, 0)
+  local action
+  for _, a in ipairs(response and response.result or {}) do
+    local k = a.kind or ""
+    if a.edit and (k == kind or vim.startswith(k, kind .. ".")) then
+      action = a
+      break
+    end
+  end
+  if not action then
+    vim.notify(nothing, vim.log.levels.WARN)
+    return nil
+  end
+  vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
+  vim.notify(action.title)
+  return action
+end
+
+--- Move the node under the cursor into `nodes/<id>.tex`, leaving an `\input` behind.
+function M.atomize()
+  return M.code_action(
+    "refactor.extract",
+    "loom: nothing to atomize here; the cursor must be inside a node that has an id and does not already have a file of its own (:LoomId gives a node without an id one)"
+  )
+end
+
+--- Give the node under the cursor the next free id.
+function M.id()
+  return M.code_action(
+    "refactor.rewrite",
+    "loom: nothing to give an id to here; the cursor must be inside a node that has none"
+  )
+end
+
 --- Ask before a command that writes. Replaced in the tests.
 --- @param message string
 --- @return boolean
