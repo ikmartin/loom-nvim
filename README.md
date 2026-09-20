@@ -1,5 +1,7 @@
 # loom-nvim
 
+> **This repository is a mirror.** It is `loom-nvim/` in [ikmartin/loom-arras](https://github.com/ikmartin/loom-arras), pushed here on every change so a plugin manager can install it. Issues and pull requests belong there; a pull request opened here cannot be merged.
+
 A Neovim client for [loom](https://github.com/ikmartin/loom): it starts [loom-lsp](https://github.com/ikmartin/loom-lsp) inside a quilt and puts loom's own commands on the command line.
 
 It **complements vimtex rather than replacing it.** vimtex keeps `tex`; this plugin attaches a second language client beside it and adds commands of its own. It starts only inside a quilt, so an ordinary `.tex` file is untouched.
