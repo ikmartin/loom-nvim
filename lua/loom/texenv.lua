@@ -1,4 +1,4 @@
--- TeX's search path while a quilt file is current. A quilt's masters sit in drafts/ but name everything relative to the quilt root, and vimtex runs latexmk in the master's own folder, so the root is put on TEXINPUTS and BIBINPUTS for the processes Neovim starts.
+-- TeX's search path while a quilt file is current. A quilt's masters sit in its drafting folder (`drafting/` by default) but name everything relative to the quilt root, and vimtex runs latexmk in the master's own folder, so the root is put on TEXINPUTS and BIBINPUTS for the processes Neovim starts.
 -- Nothing is written to the quilt: the variables live in this Neovim process only, and leaving the quilt for another file restores them.
 
 local quilt = require("loom.quilt")

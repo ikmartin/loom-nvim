@@ -127,6 +127,27 @@ describe("the reshaping commands", function()
   end)
 end)
 
+--- The quilt's main master, as loom resolves it: `[quilt] main`, else `<drafting>/main.tex`. Reads only flat `key = "string"` lines, which is all a quilt's `[quilt]` table holds.
+local function master_of(root)
+  local keys, section = {}, nil
+  for _, line in ipairs(vim.fn.readfile(root .. "/config.toml")) do
+    local table_name = line:match("^%s*%[([^%]]+)%]")
+    if table_name then
+      section = vim.trim(table_name)
+    elseif section == "quilt" then
+      local key, value = line:match('^%s*([%w_]+)%s*=%s*"([^"]*)"')
+      if key then
+        keys[key] = value
+      end
+    end
+  end
+  local drafting = (keys.drafting or "drafting"):gsub("^/+", ""):gsub("/+$", "")
+  if drafting == "" then
+    drafting = "drafting"
+  end
+  return root .. "/" .. (keys.main or (drafting .. "/main.tex"))
+end
+
 describe("atomize on the real server", function()
   it("moves the node under the cursor into nodes/, in the buffer", function()
     local quilt = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":p:h:h:h") .. "/loom/tests/quilts/synthetic"
@@ -137,7 +158,9 @@ describe("atomize on the real server", function()
     local root = vim.fn.tempname()
     vim.fn.system({ "cp", "-R", quilt, root })
     require("loom").setup({ which_key = false })
-    vim.cmd("edit " .. vim.fn.fnameescape(root .. "/drafts/main.tex"))
+    local master = master_of(root)
+    assert.are.equal(1, vim.fn.filereadable(master), "the synthetic quilt has no master at " .. master .. "; did the fixture layout change?")
+    vim.cmd("edit " .. vim.fn.fnameescape(master))
 
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     local row

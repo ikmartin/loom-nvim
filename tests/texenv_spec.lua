@@ -5,12 +5,12 @@ local SEP = vim.fn.has("win32") == 1 and ";" or ":"
 
 local function make_quilt()
   local d = vim.fn.resolve(vim.fn.tempname())
-  vim.fn.mkdir(d .. "/drafts", "p")
+  vim.fn.mkdir(d .. "/drafting", "p")
   vim.fn.mkdir(d .. "/nodes", "p")
   vim.fn.writefile({ "[quilt]" }, d .. "/config.toml")
   vim.fn.writefile({ "\\ProvidesPackage{loom}" }, d .. "/loom.sty")
   vim.fn.writefile({ "@misc{x, title={X}}" }, d .. "/refs.bib")
-  vim.fn.writefile({ "\\documentclass{article}", "\\usepackage{loom}" }, d .. "/drafts/main.tex")
+  vim.fn.writefile({ "\\documentclass{article}", "\\usepackage{loom}" }, d .. "/drafting/main.tex")
   return d
 end
 
@@ -38,22 +38,22 @@ describe("texenv", function()
 
   it("puts the quilt root first while a quilt file is current, keeping what was there", function()
     local root = make_quilt()
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     assert.are.equal(root .. SEP .. "/existing/tex", vim.env.TEXINPUTS)
     assert.are.equal(root .. SEP, vim.env.BIBINPUTS)
   end)
 
   it("does not add the root twice when the quilt is entered again", function()
     local root = make_quilt()
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     vim.cmd("edit " .. root .. "/loom.sty")
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     assert.are.equal(root .. SEP .. "/existing/tex", vim.env.TEXINPUTS)
   end)
 
   it("restores the original values for a file outside any quilt", function()
     local root = make_quilt()
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     vim.cmd("edit " .. plain_file())
     assert.are.equal("/existing/tex", vim.env.TEXINPUTS)
     assert.is_nil(vim.env.BIBINPUTS)
@@ -61,7 +61,7 @@ describe("texenv", function()
 
   it("leaves the path alone for a buffer that is not a file", function()
     local root = make_quilt()
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     local scratch = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_current_buf(scratch)
     assert.are.equal(root .. SEP .. "/existing/tex", vim.env.TEXINPUTS)
@@ -69,22 +69,22 @@ describe("texenv", function()
 
   it("switches between two quilts", function()
     local a, b = make_quilt(), make_quilt()
-    vim.cmd("edit " .. a .. "/drafts/main.tex")
-    vim.cmd("edit " .. b .. "/drafts/main.tex")
+    vim.cmd("edit " .. a .. "/drafting/main.tex")
+    vim.cmd("edit " .. b .. "/drafting/main.tex")
     assert.are.equal(b .. SEP .. "/existing/tex", vim.env.TEXINPUTS)
   end)
 
-  it("reaches the processes Neovim starts, so TeX run from drafts/ finds the root's files", function()
+  it("reaches the processes Neovim starts, so TeX run from drafting/ finds the root's files", function()
     if vim.fn.executable("kpsewhich") == 0 then
       pending("kpsewhich is not installed")
       return
     end
     local root = make_quilt()
-    vim.cmd("edit " .. root .. "/drafts/main.tex")
+    vim.cmd("edit " .. root .. "/drafting/main.tex")
     local function find(args)
       local out = {}
       local job = vim.fn.jobstart(args, {
-        cwd = root .. "/drafts",
+        cwd = root .. "/drafting",
         stdout_buffered = true,
         on_stdout = function(_, data)
           out = data
