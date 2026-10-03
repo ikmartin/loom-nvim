@@ -79,7 +79,7 @@ function M.lint()
         return
       end
       local items = {}
-      for _, d in ipairs(parsed) do
+      for _, d in ipairs(parsed.diagnostics or {}) do
         for _, loc in ipairs(d.locations or {}) do
           table.insert(items, {
             filename = ctx.root .. "/" .. loc.file,
