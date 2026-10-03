@@ -12,7 +12,7 @@ describe("setup", function()
       "LoomAccept",
       "LoomServe",
       "LoomOpen",
-      "LoomBundle",
+      "LoomClosure",
       "LoomDeps",
     }) do
       assert.is_not_nil(made[name], name .. " was not created")

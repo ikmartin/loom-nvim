@@ -7,12 +7,19 @@ describe("argv_for", function()
   local root = "/tmp/quilt"
 
   it("puts the quilt root on every call", function()
-    for _, name in ipairs({ "status", "lint", "accept", "serve", "bundle", "deps" }) do
+    for _, name in ipairs({ "status", "lint", "accept", "serve", "closure", "deps" }) do
       local argv = commands.argv_for(name, root, cfg, "rl-0004")
       assert.are.equal("/opt/loom", argv[1])
       assert.are.equal("--quilt", argv[#argv - 1])
       assert.are.equal(root, argv[#argv])
     end
+  end)
+
+  it("reads a closure as loom source prints it", function()
+    assert.are.same(
+      { "/opt/loom", "source", "rl-0004", "--closure", "--quilt", root },
+      commands.argv_for("closure", root, cfg, "rl-0004")
+    )
   end)
 
   it("asks lint for json", function()

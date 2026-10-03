@@ -38,7 +38,7 @@ Neovim 0.12 registers the server through `vim.lsp.config` and `vim.lsp.enable`; 
 | `:LoomAccept [key]` | record an acceptance for the key under the cursor, after confirming |
 | `:LoomServe` | start this session's `loom serve` for the quilt, or say where it is running (see below) |
 | `:LoomOpen [key]` | open the node under the cursor in arras, starting the server first when needed |
-| `:LoomBundle [key]` | the standalone bundle for a key, in a scratch buffer |
+| `:LoomClosure [key]` | a key with its closure, as `loom source --closure` prints it, in a scratch buffer |
 | `:LoomDeps [key]` | what the key depends on, and what it is related to |
 
 ## The server a session owns

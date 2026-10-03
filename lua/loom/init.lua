@@ -19,7 +19,7 @@ local COMMANDS = {
   { name = "LoomAccept", fn = commands.accept, nargs = "?", desc = "Record an acceptance" },
   { name = "LoomServe", fn = commands.serve, nargs = 0, desc = "Start loom serve in a terminal" },
   { name = "LoomOpen", fn = commands.open, nargs = "?", desc = "Open the node in arras" },
-  { name = "LoomBundle", fn = commands.bundle, nargs = "?", desc = "The standalone bundle for a key" },
+  { name = "LoomClosure", fn = commands.closure, nargs = "?", desc = "A key with its closure, as loom source --closure prints it" },
   { name = "LoomDeps", fn = commands.deps, nargs = "?", desc = "What a key depends on" },
 }
 

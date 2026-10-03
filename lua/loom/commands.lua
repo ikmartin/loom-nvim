@@ -46,8 +46,8 @@ function M.argv_for(name, root, cfg, arg)
     return A("accept", arg or "")
   elseif name == "serve" then
     return arg and A("serve", "--port", arg) or A("serve")
-  elseif name == "bundle" then
-    return A("bundle", arg or "")
+  elseif name == "closure" then
+    return A("source", arg or "", "--closure")
   elseif name == "deps" then
     return A("deps", arg or "")
   end
@@ -167,7 +167,7 @@ function M.serve()
   end)
 end
 
-function M.bundle(arg)
+function M.closure(arg)
   local ctx = context()
   if not ctx then
     return
@@ -177,9 +177,9 @@ function M.bundle(arg)
     vim.notify("loom: no key under the cursor", vim.log.levels.WARN)
     return
   end
-  run.run(M.argv_for("bundle", ctx.root, ctx.config, key), function(_, out)
+  run.run(M.argv_for("closure", ctx.root, ctx.config, key), function(_, out)
     vim.schedule(function()
-      run.scratch("loom://bundle/" .. key, vim.split(out, "\n"), "tex")
+      run.scratch("loom://closure/" .. key, vim.split(out, "\n"), "tex")
     end)
   end)
 end
